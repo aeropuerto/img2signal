@@ -11,15 +11,24 @@ let main = () => {
   let superSignal = spSignals([red, green, blue]);
   normalizeSignals([superSignal], 3);
 
+  let hfRed = highPassFilter(red);
+  let hfGreen = highPassFilter(green);
+  let hfBlue = highPassFilter(blue);
+  console.log(red.length, hfRed.length);
   let plotData = [
     { name: 'red', data: red },
     { name: 'green', data: green },
     { name: 'blue', data: blue },
     { name: 'interference', data: superSignal},
+    { name: 'high pass filtered red', data: hfRed},
   ]
   plotChannels(plotData);
 
-  let im = signals2img([superSignal, superSignal, superSignal], {width: imageData.width, height: imageData.height});
+
+  //let im = signals2img([superSignal, superSignal, superSignal], {width: imageData.width, height: imageData.height});
+  //showImage(im);
+
+  let im = signals2img([hfRed.slice(3, hfRed.length-3), hfGreen.slice(3, hfGreen.length-3), hfBlue.slice(3, hfBlue.length-3)], {width: imageData.width});
   showImage(im);
 };
 
@@ -155,6 +164,7 @@ let signals2img = (signals, options) => {
     }
   }
   let data = Uint8ClampedArray.from(result);
+  console.log('imData:', data);
   let imData = new ImageData(data, options.width ? options.width : 256, options.height ? options.height : undefined);
   console.log('new imdata:', imData);
   return imData;
@@ -169,4 +179,30 @@ let showImage = (imData) => {
   plot.appendChild(canvas);
   let ctx = canvas.getContext('2d');
   ctx.putImageData(imData, 0, 0);
+}
+
+let highPassFilter = (s) => {
+  // Impulse response for a simple high pass filter
+  let highPassIR = [0.8, -0.25, -0.1, -0.05, 0, 0, 0];
+  let highPassIR2 = [1, -1, 0, 0, 0, 0, 0];
+  let lowPassIR = [0.1, 0.1, 0.1, 0, 0, 0, 0];
+  return convolution(s, highPassIR2);
+}
+
+// A convolution of a given signal s and an impulse response ir.
+// Returns a convolution (signal) of length s.length + ir.length - 1
+let convolution = (s, ir) => {
+  let conv = [];
+  let resLength = s.length + ir.length - 1;
+  // Fill with zeros
+  for (let k = 0; k < resLength; k++) {
+    conv[k] = 0;
+  }
+  // convolution
+  for (let i = 0; i < s.length; i++) {
+    for (let j = 0; j < ir.length; j++) {
+      conv[i + j] += s[i] * ir[j];
+    }
+  }
+  return conv;
 }

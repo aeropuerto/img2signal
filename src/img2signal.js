@@ -48,7 +48,9 @@ let readImage = () => {
 };
 
 
-// strip alpha channel from raw pixel data
+/**
+ * strip alpha channel from raw pixel data
+ */
 let stripAlphaChannel = (raw) => {
   let sChannels = 4;
   let dChannels = 3;
@@ -66,9 +68,10 @@ let stripAlphaChannel = (raw) => {
   return strippedImage;
 };
 
-
-// Return a single channel signal from raw data
-// chidx indicates channel number e.g. 0 = red, 1 = green, 2 = blue
+/**
+ * Return a single channel signal from raw data
+ * chidx indicates channel number e.g. 0 = red, 1 = green, 2 = blue
+ */
 let getChannel = (raw, chidx) => {
   let chData = [];
   for (let i = 0; i < raw.length; i++) {
@@ -77,8 +80,10 @@ let getChannel = (raw, chidx) => {
   return chData;
 };
 
-// Scale all values of given signal set to a range between [0, 1]
-// A max-value is required for scaling
+/**
+ * Scale all values of given signal set to a range between [0, 1]
+ * A max-value is required for scaling
+ */
 let normalizeSignals = (channels, maxValue) => {
   for (let idx = 0; idx < channels.length; idx++) {
     let channel = channels[idx];
@@ -122,9 +127,11 @@ let plotChannel = (ch, canvas, scale) => {
   ctx.stroke();
 };
 
-// Add multiple signals (e.g. color channels) together (signal superposition).
-// Addition is done up to the amount of samples of the
-// shortest given signal.
+/**
+ * Add multiple signals (e.g. color channels) together (signal superposition).
+ * Addition is done up to the amount of samples of the
+ * shortest given signal.
+ */
 let spSignals = (signals) => {
   let result = [];
   let numSignals = signals.length;
@@ -146,10 +153,12 @@ let spSignals = (signals) => {
   return result;
 };
 
-// Create an ImageData -object from given signals.
-// NOTE: Samples from signals are interleaved in the order
-// they appear in the given wrapping array and all samples
-// within signals must be between [0, 1].
+/**
+ * Create an ImageData -object from given signals.
+ * NOTE: Samples from signals are interleaved in the order
+ * they appear in the given wrapping array and all samples
+ * within signals must be between [0, 1].
+ */
 let signals2img = (signals, options) => {
   let result = [];
   let sChannels = signals.length;
@@ -176,7 +185,9 @@ let signals2img = (signals, options) => {
   return imData;
 };
 
-// Display an ImageData -object
+/**
+ * Display an ImageData -object
+ */
 let showImage = (imData) => {
   let plot = document.getElementById('plot');
   let canvas = document.createElement('canvas');
@@ -187,19 +198,26 @@ let showImage = (imData) => {
   ctx.putImageData(imData, 0, 0);
 }
 
+/**
+ * Simple high-pass filter
+ */
 let highPassFilter = (s) => {
   // Impulse response for a simple high pass filter
-  let highPassIR = [0.8, -0.25, -0.1, -0.05, 0, 0, 0];
-  let highPassIR2 = [1, -1, 0, 0, 0, 0, 0];
-  let lowPassIR = [0.1, 0.1, 0.1, 0, 0, 0, 0];
-  return convolution(s, highPassIR2);
+  let highPassIR = [0.9, -0.65, -0.1, -0.05, -0.01, -0.005, -0.001];
+  let highPassIR2 = [1, -1, 0, 0, 0, 0, 0]; // first difference
+  return convolution(s, highPassIR);
 }
 
-// A convolution of a given signal s and an impulse response ir.
-// Returns a convolution (signal) of length s.length + ir.length - 1
+/**
+ * A convolution of a given signal s and an impulse response ir.
+ * Returns a convolution (signal) of length s.length + ir.length - 1
+ * NOTE: Impulse responses with odd lengths should be used for appropriate
+ * slicing
+ */
 let convolution = (s, ir) => {
   let conv = [];
   let resLength = s.length + ir.length - 1;
+  let diff = ir.length - 1;
   // Fill with zeros
   for (let k = 0; k < resLength; k++) {
     conv[k] = 0;

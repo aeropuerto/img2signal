@@ -14,7 +14,6 @@ let main = () => {
   let hfRed = highPassFilter(red);
   let hfGreen = highPassFilter(green);
   let hfBlue = highPassFilter(blue);
-  console.log(red.length, hfRed.length);
   let plotData = [
     { name: 'red', data: red },
     { name: 'green', data: green },

@@ -14,21 +14,30 @@ let main = () => {
   let hfRed = highPassFilter(red);
   let hfGreen = highPassFilter(green);
   let hfBlue = highPassFilter(blue);
+
+  let gRed = gaussianBlur(red);
+  let gGreen = gaussianBlur(green);
+  let gBlue = gaussianBlur(blue);
+
   let plotData = [
     { name: 'red', data: red },
     { name: 'green', data: green },
     { name: 'blue', data: blue },
     { name: 'interference', data: superSignal},
-    { name: 'high pass filtered red', data: hfRed},
+    //{ name: 'high pass filtered red', data: hfRed},
+    { name: 'gaussian blurred red', data: gRed},
   ]
   plotChannels(plotData);
 
+  let im = signals2img([gRed, gGreen, gBlue], {width: imageData.width});
+  showImage(im);
 
   //let im = signals2img([superSignal, superSignal, superSignal], {width: imageData.width, height: imageData.height});
   //showImage(im);
 
-  let im = signals2img([hfRed, hfGreen, hfBlue], {width: imageData.width});
-  showImage(im);
+  //let im = signals2img([hfRed, hfGreen, hfBlue], {width: imageData.width});
+  //showImage(im);
+
 };
 
 /**
@@ -233,6 +242,17 @@ let convolution = (s, ir) => {
   return conv.slice(diff/2, resLength-diff/2);
 }
 
+/**
+ * Flips a signal
+ */
+let flipSignal = (s) => {
+  let flipped = [];
+  for (let i = s.length-1; i >= 0; i--) {
+    flipped.push(s[i]);
+  }
+  return flipped;
+}
+
 
 /**
  * Softmax for filter kernel / IR generation
@@ -251,4 +271,31 @@ let softmax = (ir) => {
     nrmIr[j] = Math.exp(ir[j]) / expSum;
   }
   return nrmIr;
+}
+
+
+/**
+ * Blur the image using a gaussian filter e.g.
+ * a convolution of each channel with a gaussian
+ * function as the impulse response.
+ * NOTE: This effect only seems to have an
+ * effect horizontally, which means that
+ * spatial information during processing
+ * is lost due to the type of array / data
+ * handling in use atm.
+ */
+let gaussianBlur = (s) => {
+  let gaussianIR = gaussian(0.1, 10);
+  return convolution(s, gaussianIR);
+}
+
+/**
+ * Create a gaussian impulse response
+ */
+let gaussian = (a, numSamples) => {
+  let g = [];
+  for (let i = 0; i < numSamples; i++) {
+    g.push(Math.sqrt(a / Math.PI) * Math.exp(-a * i^2))
+  }
+  return softmax(g);
 }

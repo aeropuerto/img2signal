@@ -11,19 +11,29 @@ let main = () => {
   let superSignal = spSignals([red, green, blue]);
   normalizeSignals([superSignal], 3);
 
+  let hfRed = highPassFilter(red);
+  let hfGreen = highPassFilter(green);
+  let hfBlue = highPassFilter(blue);
   let plotData = [
     { name: 'red', data: red },
     { name: 'green', data: green },
     { name: 'blue', data: blue },
     { name: 'interference', data: superSignal},
+    { name: 'high pass filtered red', data: hfRed},
   ]
   plotChannels(plotData);
 
-  let im = signals2img([superSignal, superSignal, superSignal], {width: imageData.width, height: imageData.height});
+
+  //let im = signals2img([superSignal, superSignal, superSignal], {width: imageData.width, height: imageData.height});
+  //showImage(im);
+
+  let im = signals2img([hfRed, hfGreen, hfBlue], {width: imageData.width});
   showImage(im);
 };
 
-// Load image to canvas from img element and return pixel / dimension data
+/**
+ * Load image to canvas from img element and return pixel / dimension data
+ */
 let readImage = () => {
   let canvas = document.getElementById('canvas');
   let ctx = canvas.getContext('2d');
@@ -38,7 +48,9 @@ let readImage = () => {
 };
 
 
-// strip alpha channel from raw pixel data
+/**
+ * strip alpha channel from raw pixel data
+ */
 let stripAlphaChannel = (raw) => {
   let sChannels = 4;
   let dChannels = 3;
@@ -56,9 +68,10 @@ let stripAlphaChannel = (raw) => {
   return strippedImage;
 };
 
-
-// Return a single channel signal from raw data
-// chidx indicates channel number e.g. 0 = red, 1 = green, 2 = blue
+/**
+ * Return a single channel signal from raw data
+ * chidx indicates channel number e.g. 0 = red, 1 = green, 2 = blue
+ */
 let getChannel = (raw, chidx) => {
   let chData = [];
   for (let i = 0; i < raw.length; i++) {
@@ -67,8 +80,10 @@ let getChannel = (raw, chidx) => {
   return chData;
 };
 
-// Scale all values of given signal set to a range between [0, 1]
-// A max-value is required for scaling
+/**
+ * Scale all values of given signal set to a range between [0, 1]
+ * A max-value is required for scaling
+ */
 let normalizeSignals = (channels, maxValue) => {
   for (let idx = 0; idx < channels.length; idx++) {
     let channel = channels[idx];
@@ -78,22 +93,27 @@ let normalizeSignals = (channels, maxValue) => {
   }
 };
 
-let plotChannels = (data) => {
+/**
+ * Main method for plotting a set of signals
+ */
+let plotChannels = (data, options) => {
   let plot = document.getElementById('plot');
+  let scale = options ? (options.scale ? options.scale : undefined) : undefined;
   data.map((channel) => {
     let title = document.createTextNode(channel.name);
     plot.appendChild(title);
     let canvas = document.createElement('canvas');
     plot.appendChild(canvas);
-    plotChannel(channel.data, canvas);
+    plotChannel(channel.data, canvas, scale);
   });
 };
 
-
-// Plot a channels values onto a canvas
-let plotChannel = (ch, canvas) => {
+/**
+ * Plot a channels values onto a canvas
+ */
+let plotChannel = (ch, canvas, scale) => {
   let ctx = canvas.getContext('2d');
-  let plotScale = 0.5;
+  let plotScale = scale ? scale : (window.innerWidth-20) / ch.length; // if no scale is given, use one that fits the data on the screen
   let numValues = ch.length
   let maxValue = 100;
   let initValue = maxValue-ch[0]*maxValue;
@@ -107,9 +127,11 @@ let plotChannel = (ch, canvas) => {
   ctx.stroke();
 };
 
-// Add multiple signals (e.g. color channels) together (signal superposition).
-// Addition is done up to the amount of samples of the
-// shortest given signal.
+/**
+ * Add multiple signals (e.g. color channels) together (signal superposition).
+ * Addition is done up to the amount of samples of the
+ * shortest given signal.
+ */
 let spSignals = (signals) => {
   let result = [];
   let numSignals = signals.length;
@@ -131,10 +153,12 @@ let spSignals = (signals) => {
   return result;
 };
 
-// Create an ImageData -object from given signals.
-// NOTE: Samples from signals are interleaved in the order
-// they appear in the given wrapping array and all samples
-// within signals must be between [0, 1].
+/**
+ * Create an ImageData -object from given signals.
+ * NOTE: Samples from signals are interleaved in the order
+ * they appear in the given wrapping array and all samples
+ * within signals must be between [0, 1].
+ */
 let signals2img = (signals, options) => {
   let result = [];
   let sChannels = signals.length;
@@ -155,12 +179,15 @@ let signals2img = (signals, options) => {
     }
   }
   let data = Uint8ClampedArray.from(result);
+  console.log('imData:', data);
   let imData = new ImageData(data, options.width ? options.width : 256, options.height ? options.height : undefined);
   console.log('new imdata:', imData);
   return imData;
 };
 
-// Display an ImageData -object
+/**
+ * Display an ImageData -object
+ */
 let showImage = (imData) => {
   let plot = document.getElementById('plot');
   let canvas = document.createElement('canvas');
@@ -169,4 +196,59 @@ let showImage = (imData) => {
   plot.appendChild(canvas);
   let ctx = canvas.getContext('2d');
   ctx.putImageData(imData, 0, 0);
+}
+
+/**
+ * Simple high-pass filter
+ */
+let highPassFilter = (s) => {
+  // Impulse response for a simple high pass filter
+  let highPassIR = [0.9, -0.65, -0.1, -0.05, -0.01, -0.005, -0.001];
+  let highPassIR2 = [1, -1, 0, 0, 0, 0, 0]; // first difference
+  return convolution(s, highPassIR);
+}
+
+/**
+ * A convolution of a given signal s and an impulse response ir.
+ * Returns a convolution (signal) of length s.length + ir.length - 1
+ * NOTE: Impulse responses with odd lengths should be used for appropriate
+ * slicing
+ */
+let convolution = (s, ir) => {
+  let conv = [];
+  let resLength = s.length + ir.length - 1;
+  let diff = ir.length - 1;
+  // Fill with zeros
+  for (let k = 0; k < resLength; k++) {
+    conv[k] = 0;
+  }
+  // convolution
+  for (let i = 0; i < s.length; i++) {
+    for (let j = 0; j < ir.length; j++) {
+      conv[i + j] += s[i] * ir[j];
+    }
+  }
+  // Compensate for the length attribution from
+  // convolution
+  return conv.slice(diff/2, resLength-diff/2);
+}
+
+
+/**
+ * Softmax for filter kernel / IR generation
+ * e.g. low-pass filters.
+ * @param ir - impulse response signal
+ * @return a normalized signal with all sample being
+ * between (0, 1) and summing up to 1.
+ */
+let softmax = (ir) => {
+  let expSum = 0;
+  let nrmIr = [];
+  for (let i = 0; i < ir.length; i++) {
+    expSum += Math.exp(ir[i]);
+  }
+  for (let j = 0; j < ir.length; j++) {
+    nrmIr[j] = Math.exp(ir[j]) / expSum;
+  }
+  return nrmIr;
 }

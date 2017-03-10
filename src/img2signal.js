@@ -228,5 +228,27 @@ let convolution = (s, ir) => {
       conv[i + j] += s[i] * ir[j];
     }
   }
-  return conv;
+  // Compensate for the length attribution from
+  // convolution
+  return conv.slice(diff/2, resLength-diff/2);
+}
+
+
+/**
+ * Softmax for filter kernel / IR generation
+ * e.g. low-pass filters.
+ * @param ir - impulse response signal
+ * @return a normalized signal with all sample being
+ * between (0, 1) and summing up to 1.
+ */
+let softmax = (ir) => {
+  let expSum = 0;
+  let nrmIr = [];
+  for (let i = 0; i < ir.length; i++) {
+    expSum += Math.exp(ir[i]);
+  }
+  for (let j = 0; j < ir.length; j++) {
+    nrmIr[j] = Math.exp(ir[j]) / expSum;
+  }
+  return nrmIr;
 }

@@ -27,11 +27,13 @@ let main = () => {
   //let im = signals2img([superSignal, superSignal, superSignal], {width: imageData.width, height: imageData.height});
   //showImage(im);
 
-  let im = signals2img([hfRed.slice(3, hfRed.length-3), hfGreen.slice(3, hfGreen.length-3), hfBlue.slice(3, hfBlue.length-3)], {width: imageData.width});
+  let im = signals2img([hfRed, hfGreen, hfBlue], {width: imageData.width});
   showImage(im);
 };
 
-// Load image to canvas from img element and return pixel / dimension data
+/**
+ * Load image to canvas from img element and return pixel / dimension data
+ */
 let readImage = () => {
   let canvas = document.getElementById('canvas');
   let ctx = canvas.getContext('2d');
@@ -86,22 +88,27 @@ let normalizeSignals = (channels, maxValue) => {
   }
 };
 
-let plotChannels = (data) => {
+/**
+ * Main method for plotting a set of signals
+ */
+let plotChannels = (data, options) => {
   let plot = document.getElementById('plot');
+  let scale = options ? (options.scale ? options.scale : undefined) : undefined;
   data.map((channel) => {
     let title = document.createTextNode(channel.name);
     plot.appendChild(title);
     let canvas = document.createElement('canvas');
     plot.appendChild(canvas);
-    plotChannel(channel.data, canvas);
+    plotChannel(channel.data, canvas, scale);
   });
 };
 
-
-// Plot a channels values onto a canvas
-let plotChannel = (ch, canvas) => {
+/**
+ * Plot a channels values onto a canvas
+ */
+let plotChannel = (ch, canvas, scale) => {
   let ctx = canvas.getContext('2d');
-  let plotScale = 0.5;
+  let plotScale = scale ? scale : (window.innerWidth-20) / ch.length; // if no scale is given, use one that fits the data on the screen
   let numValues = ch.length
   let maxValue = 100;
   let initValue = maxValue-ch[0]*maxValue;

@@ -20,8 +20,8 @@ let main = () => {
   let gBlue = gaussianBlur(blue);
 
   let g2dRed = gaussianBlur2D(red, imageData.width);
-  //let g2dGreen = gaussianBlur2D(green);
-  //let g2dBlue = gaussianBlur2D(blue);
+  let g2dGreen = gaussianBlur2D(green, imageData.width);
+  let g2dBlue = gaussianBlur2D(blue, imageData.width);
 
   let plotData = [
     { name: 'red', data: red },
@@ -31,14 +31,16 @@ let main = () => {
     //{ name: 'high pass filtered red', data: hfRed},
     { name: 'gaussian blurred red', data: gRed},
     { name: '2D gaussian blurred red', data: g2dRed},
+    { name: '2D gaussian blurred green', data: g2dGreen},
+    { name: '2D gaussian blurred blue', data: g2dBlue},
   ]
   plotChannels(plotData);
 
   // 2D gaussian blur example
-  //let im = signals2img([g2dRed, g2dGreen, g2dBlue], {width: imageData.width});
+  let im = signals2img([g2dRed, g2dGreen, g2dBlue], {width: imageData.width});
 
   // 1D gaussian blur example
-  let im = signals2img([gRed, gGreen, gBlue], {width: imageData.width});
+  //let im = signals2img([gRed, gGreen, gBlue], {width: imageData.width});
 
   // high pass filtered image -> e.g. edge filtering
   //let im = signals2img([hfRed, hfGreen, hfBlue], {width: imageData.width});
@@ -47,6 +49,7 @@ let main = () => {
   //let im = signals2img([superSignal, superSignal, superSignal], {width: imageData.width, height: imageData.height});
 
   showImage(im);
+  //console.log('test', convolution2D([2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 8, 9, 8, 9], [1, 2, 1, 2, 3, 2, 1, 2, 1], 4));
 };
 
 /**
@@ -312,6 +315,7 @@ let gaussian = (a, numSamples) => {
   }
   return softmax(g);
   // The standard deviation version of the gaussian function
+  // TODO: Finish implementation for comparison
   // let g = [];
   // for (let i = 0; i < numSamples; i++) {
   //   let multiplier = 1 / (Math.sqrt(2*Math.PI) * a);
@@ -327,7 +331,7 @@ let gaussian = (a, numSamples) => {
  * a gaussian impulse response (kernel).
  */
 let gaussianBlur2D = (s, width) => {
-  let gaussianIR = gaussian(0.1, 5);
+  let gaussianIR = gaussian(0.1, 7);
   //console.log('1D gaussian:', gaussianIR);
   let gaussian2dIR = gaussian2D(gaussianIR);
   //console.log('2D gaussian:', gaussian2dIR);
@@ -358,20 +362,14 @@ let gaussian2D = (IR) => {
  * with image-channel-signals).
  */
 let convolution2D = (s, ir, width) => {
-  let idx = 0;
+  let conv = [];
   // Iterate every sample in the signal, but
   // take spatial information into account.
-  // The equation for the top left corner index shift
-  // of the kernel is given by
-  // padding * width + padding ** 2 + padding
   let kernelSize = Math.sqrt(ir.length);
   let padding = (kernelSize-1) / 2;
   let spatialHeight = s.length / width;
   let paddedLength = (width + 2 * padding) * (spatialHeight + 2 * padding)
-  console.log(width, s.length, paddedLength);
-  // Offset for the starting index in the signal array for the kernel
-  let kernelTopLeftOffset = padding * width + Math.pow(padding, 2) + padding*2;
-  console.log(kernelTopLeftOffset);
+
   // Pad the signal
   let padded = Array(paddedLength).fill(0);
   let px = 0;
@@ -382,49 +380,24 @@ let convolution2D = (s, ir, width) => {
       px ++;
     }
   }
-  console.log('padded:', padded);
-  for (let sample = 0; sample < s.length; sample++) {
-    for (let k = 0; k < ir.length; k++) {
-      //
-      let kernelRow = Math.floor(k / kernelSize);
-      let s_topLeft = s[sample - kernelTopLeftOffset + kernelRow * width + (k - kernelSize)];
-      s_topLeft = s_topLeft ? s_topLeft : 0;
-
-      if (idx > 2000 && idx < 2010) {
-        //console.log(sample - kernelTopLeftOffset)
-        //console.log(s_topLeft);
-      }
-      idx++;
+  // Calculate convolution over two loops.
+  // The first loop goes through the number of samples
+  // in the original signal and the inner one goes through
+  // the samples held in the kernel being used.
+  for (let sidx = 0; sidx < s.length; sidx++) {
+    // Variable to store the sum of all ir[n]*sample
+    let val = 0;
+    // Go through the values in the kernel and multiply by
+    // corresponding value from the padded signal.
+    // The index (pidx, "padded index") is built by taking
+    // the needed offset between
+    // these arrays into account.
+    for (let kidx = 0; kidx < ir.length; kidx++) {
+      let krow =  Math.floor(kidx / kernelSize) * (width-1)
+      let pidx = sidx + krow + kidx + Math.floor(sidx / width) * 2 * padding;
+      val += ir[kidx] * padded[pidx];
     }
+    conv.push(val);
   }
-  return s;
+  return conv;
 };
-
-
-// let convolution2D = (s, ir, width) => {
-//   let idx = 0;
-//   // Iterate every sample in the signal, but
-//   // take spatial information into account.
-//   // The equation for the top left corner index shift
-//   // of the kernel is given by
-//   // leftShift * width + leftShift ** 2 + leftShift
-//   let kernelSize = Math.sqrt(ir.length);
-//   let leftShift = (kernelSize-1) / 2;
-//   // Offset for the starting index in the signal array for the kernel
-//   let kernelTopLeftOffset = leftShift * width + Math.pow(leftShift, 2) + leftShift;
-//   for (let sample = 0; sample < s.length; sample++) {
-//     for (let k = 0; k < ir.length; k++) {
-//       //
-//       let kernelRow = Math.floor(k / kernelSize);
-//       let s_topLeft = s[sample - kernelTopLeftOffset + kernelRow * width + (k - kernelSize)];
-//       s_topLeft = s_topLeft ? s_topLeft : 0;
-
-//       if (idx > 2000 && idx < 2010) {
-//         //console.log(sample - kernelTopLeftOffset)
-//         console.log(s_topLeft);
-//       }
-//       idx++;
-//     }
-//   }
-//   return s;
-// };

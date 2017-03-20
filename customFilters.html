@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+
+  </head>
+  <style type="text/css">
+  body {
+    padding: 0;
+    margin: 0;
+  }
+  canvas {
+    display: block;
+  }
+  </style>
+  <body onload="customFilter()">
+    <button onclick="startFilterIteration()">Take off</button>
+    <canvas id="sc"></canvas>
+    <canvas id="tc"></canvas>
+    <div style="display:none;">
+      <img id="source" src="./img/shape.png" width="40" height="40">
+      <img id="target" src="./img/targetSignal.png" width="40" height="40">
+    </div>
+    <div id="plot"></div>
+    <script type="text/javascript" src="./src/img2signal.js"></script>
+  </body>
+</html>

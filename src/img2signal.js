@@ -1,10 +1,11 @@
 
+
 let main = () => {
-  imageData = readImage();
-  stripped = stripAlphaChannel(imageData.data);
-  red = getChannel(stripped, 0);
-  green = getChannel(stripped, 1);
-  blue = getChannel(stripped, 2);
+  let imageData = readImage();
+  let stripped = stripAlphaChannel(imageData.data);
+  let red = getChannel(stripped, 0);
+  let green = getChannel(stripped, 1);
+  let blue = getChannel(stripped, 2);
 
   normalizeSignals([red, green, blue], 255);
 
@@ -55,10 +56,10 @@ let main = () => {
 /**
  * Load image to canvas from img element and return pixel / dimension data
  */
-let readImage = () => {
-  let canvas = document.getElementById('canvas');
+let readImage = (src, target) => {
+  let canvas = document.getElementById(target ? target : 'canvas');
   let ctx = canvas.getContext('2d');
-  let image = document.getElementById('source');
+  let image = document.getElementById(src ? src : 'source');
   canvas.width = image.width;
   canvas.height = image.height;
   console.log(image.width, image.height);
@@ -120,13 +121,16 @@ let normalizeSignals = (channels, maxValue) => {
 let plotChannels = (data, options) => {
   let plot = document.getElementById('plot');
   let scale = options ? (options.scale ? options.scale : undefined) : undefined;
+  let ret = {};
   data.map((channel) => {
     let title = document.createTextNode(channel.name);
     plot.appendChild(title);
     let canvas = document.createElement('canvas');
     plot.appendChild(canvas);
     plotChannel(channel.data, canvas, scale);
+    ret[channel.name] = canvas;
   });
+  return ret;
 };
 
 /**
@@ -146,6 +150,14 @@ let plotChannel = (ch, canvas, scale) => {
     ctx.lineTo(i*plotScale, maxValue-ch[i]*maxValue);
   }
   ctx.stroke();
+};
+
+/**
+ * Clear the plots
+ */
+let clearPlot = (canvas) => {
+  let ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 };
 
 /**
@@ -401,3 +413,87 @@ let convolution2D = (s, ir, width) => {
   }
   return conv;
 };
+
+// TODO: refactor these into a separate file
+
+let r, g, b, imw;
+let playing = false;
+
+let customFilter = () => {
+  let srcImageData = readImage('source', 'sc');
+  let stripped = stripAlphaChannel(srcImageData.data);
+  r = getChannel(stripped, 0);
+  g = getChannel(stripped, 1);
+  b = getChannel(stripped, 2);
+  imw = srcImageData.width;
+  normalizeSignals([r, g, b], 255);
+  //let targetImage = readImage('target', 'tc');
+};
+
+let startFilterIteration = () => {
+  playing = !playing;
+  if(playing) {
+    window.requestAnimationFrame(iterateFilter);
+  }
+};
+
+let iterateFilter = (timestamp) => {
+  // Clear contents before redraw
+  let plot = document.getElementById('plot');
+  while (plot.firstChild) {
+      plot.removeChild(plot.firstChild);
+  }
+
+  //let randomIR = getNewRandomKernel2D(7);
+  let randomIR = getSinKernel2D(11, timestamp);
+  console.log('RANDOM IR:', randomIR);
+  fr = conv2DwithIR(r, randomIR, imw);
+  fg = conv2DwithIR(g, randomIR, imw);
+  fb = conv2DwithIR(b, randomIR, imw);
+  let im = signals2img([fr, fg, fb], {width: imw});
+  showImage(im);
+
+  let plotData = [
+    { name: 'red', data: fr },
+    { name: 'green', data: fg },
+    { name: 'blue', data: fb },
+    { name: 'IR', data: randomIR},
+  ]
+  let plots = plotChannels(plotData);
+
+  setTimeout(() => {
+    if(playing){
+      window.requestAnimationFrame(iterateFilter);
+    }
+  }, 100);
+};
+
+
+let conv2DwithIR = (s, ir, width) => {
+  return convolution2D(s, ir, width);
+};
+
+
+let getNewRandomKernel2D = (size) => {
+  let c2D = [];
+  for (let i = 0; i < size; i++) {
+    for (let j = 0; j < size; j++) {
+      c2D.push( Math.random() );
+    }
+  }
+  return softmax(c2D);
+};
+
+let getSinKernel2D = (size, time) => {
+  let c2D = [];
+  for (let i = 0; i < size; i++) {
+    for (let j = 0; j < size; j++) {
+      c2D.push( Math.sin(i*j+time) * 0.2);
+    }
+  }
+  return c2D;
+};
+
+let redDiagonal = [-0.19538098728677256,-0.19538098728677256,-0.19538098728677256,-0.19538098728677256,-0.19538098728677256,-0.19538098728677256,-0.19538098728677256,-0.19538098728677256,-0.19538098728677256,-0.19538098728677256,-0.19538098728677256,-0.19538098728677256,-0.06960463798723937,0.12016589447952747,0.19945645773523185,0.0953676735897464,-0.09640170984359173,-0.1995398058259943,-0.11922192455693943,0.07070804432969076,0.19562936334645656,0.14068994789352246,-0.19538098728677256,0.12016589447952747,0.0953676735897464,-0.1995398058259943,0.07070804432969076,0.14068994789352246,-0.18780339782943412,0.015617631905524476,0.17480494160575066,-0.16110667882960664,-0.04071687212263608,-0.19538098728677256,0.19945645773523185,-0.1995398058259943,0.19562936334645656,-0.18780339782943412,0.17621854602795972,-0.16110667882960664,0.1427702603590971,-0.12157629415678961,0.09794897760032353,-0.07236121159122119,-0.19538098728677256,0.0953676735897464,0.07070804432969076,-0.18780339782943412,0.17480494160575066,-0.04071687212263608,-0.12157629415678961,0.19965201037028318,-0.13942623178547298,-0.017381876395031644,0.16214933703397744,-0.19538098728677256,-0.09640170984359173,0.14068994789352246,0.17621854602795972,-0.04071687212263608,-0.19931821989102705,-0.07236121159122119,0.15826594104556158,0.16214933703397744,-0.066274670416619,-0.19974857273644378,-0.19538098728677256,-0.1995398058259943,-0.18780339782943412,-0.16110667882960664,-0.12157629415678961,-0.07236121159122119,-0.017381876395031644,0.038982089109743656,0.09224076374449701,0.1381515920210611,0.17305734367963632,-0.19538098728677256,-0.11922192455693943,0.015617631905524476,0.1427702603590971,0.19965201037028318,0.15826594104556158,0.038982089109743656,-0.09948857132786693,-0.18899140552069071,-0.1854735220192499,-0.09066640722191938,-0.19538098728677256,0.07070804432969076,0.17480494160575066,-0.12157629415678961,-0.13942623178547298,0.16214933703397744,0.09224076374449701,-0.18899140552069071,-0.03724425195890123,0.19982948535908404,-0.02090614179250791,-0.19538098728677256,0.19562936334645656,-0.16110667882960664,0.09794897760032353,-0.017381876395031644,-0.066274670416619,0.1381515920210611,-0.1854735220192499,0.19982948535908404,-0.17866786063575502,0.12574990394377683,-0.19538098728677256,0.14068994789352246,-0.04071687212263608,-0.07236121159122119,0.16214933703397744,-0.19974857273644378,0.17305734367963632,-0.09066640722191938,-0.02090614179250791,0.12574990394377683,-0.1901201865741358 ];
+
+
